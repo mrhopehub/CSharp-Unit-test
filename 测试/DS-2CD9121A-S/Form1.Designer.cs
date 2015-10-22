@@ -41,6 +41,7 @@
             this.btnPreview = new System.Windows.Forms.Button();
             this.txtInfo = new System.Windows.Forms.TextBox();
             this.btnExit = new System.Windows.Forms.Button();
+            this.btnSnap = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.RealPlayWnd)).BeginInit();
             this.SuspendLayout();
             // 
@@ -160,11 +161,22 @@
             this.btnExit.UseVisualStyleBackColor = true;
             this.btnExit.Click += new System.EventHandler(this.btnExit_Click);
             // 
+            // btnSnap
+            // 
+            this.btnSnap.Location = new System.Drawing.Point(419, 364);
+            this.btnSnap.Name = "btnSnap";
+            this.btnSnap.Size = new System.Drawing.Size(75, 23);
+            this.btnSnap.TabIndex = 13;
+            this.btnSnap.Text = "网络触发";
+            this.btnSnap.UseVisualStyleBackColor = true;
+            this.btnSnap.Click += new System.EventHandler(this.btnSnap_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(624, 482);
+            this.Controls.Add(this.btnSnap);
             this.Controls.Add(this.btnExit);
             this.Controls.Add(this.txtInfo);
             this.Controls.Add(this.btnPreview);
@@ -201,6 +213,7 @@
         private System.Windows.Forms.Button btnPreview;
         private System.Windows.Forms.TextBox txtInfo;
         private System.Windows.Forms.Button btnExit;
+        private System.Windows.Forms.Button btnSnap;
     }
 }
 

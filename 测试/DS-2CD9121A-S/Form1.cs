@@ -8,7 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Threading;
-
+using System.IO;
 namespace DS_2CD9121A_S
 {
     public partial class Form1 : Form
@@ -58,6 +58,10 @@ namespace DS_2CD9121A_S
         //预览方式
         private int previewMode = 1;
 
+        CHCNetSDK.NET_DVR_SETUPALARM_PARAM struAlarmParam;
+        private CHCNetSDK.MSGCallBack m_falarmData = null;
+        private Int32 m_lAlarmHandle;
+
         public Form1()
         {
             InitializeComponent();
@@ -76,13 +80,100 @@ namespace DS_2CD9121A_S
             }
         }
 
+        public void MsgCallback(int lCommand, ref CHCNetSDK.NET_DVR_ALARMER pAlarmer, IntPtr pAlarmInfo, uint dwBufLen, IntPtr pUser)
+        {
+            //通过lCommand来判断接收到的报警信息类型，不同的lCommand对应不同的pAlarmInfo内容
+            switch (lCommand)
+            {
+                case CHCNetSDK.COMM_UPLOAD_PLATE_RESULT://交通抓拍结果上传(老报警信息类型)
+                    DebugInfo("老报警信息");
+                    ProcessCommAlarm_Plate(ref pAlarmer, pAlarmInfo, dwBufLen, pUser);
+                    break;
+                case CHCNetSDK.COMM_ITS_PLATE_RESULT://交通抓拍结果上传(新报警信息类型)
+                    DebugInfo("新报警信息");
+                    ProcessCommAlarm_ITSPlate(ref pAlarmer, pAlarmInfo, dwBufLen, pUser);
+                    break;
+                default:
+                    DebugInfo("未知报警信息");
+                    break;
+            }
+        }
+
+        private void ProcessCommAlarm_Plate(ref CHCNetSDK.NET_DVR_ALARMER pAlarmer, IntPtr pAlarmInfo, uint dwBufLen, IntPtr pUser)
+        {
+            CHCNetSDK.NET_DVR_PLATE_RESULT struPlateResultInfo = new CHCNetSDK.NET_DVR_PLATE_RESULT();
+            uint dwSize = (uint)Marshal.SizeOf(struPlateResultInfo);
+
+            struPlateResultInfo = (CHCNetSDK.NET_DVR_PLATE_RESULT)Marshal.PtrToStructure(pAlarmInfo, typeof(CHCNetSDK.NET_DVR_PLATE_RESULT));
+
+            //保存抓拍图片
+            string str = "";
+            if (struPlateResultInfo.byResultType == 1 && struPlateResultInfo.dwPicLen != 0)
+            {
+                str = "D:/UserID_" + pAlarmer.lUserID + "_近景图.jpg";
+                FileStream fs = new FileStream(str, FileMode.Create);
+                int iLen = (int)struPlateResultInfo.dwPicLen;
+                byte[] by = new byte[iLen];
+                Marshal.Copy(struPlateResultInfo.pBuffer1, by, 0, iLen);
+                fs.Write(by, 0, iLen);
+                fs.Close();
+            }
+            if (struPlateResultInfo.dwPicPlateLen != 0)
+            {
+                str = "D:/UserID_" + pAlarmer.lUserID + "_车牌图.jpg";
+                FileStream fs = new FileStream(str, FileMode.Create);
+                int iLen = (int)struPlateResultInfo.dwPicPlateLen;
+                byte[] by = new byte[iLen];
+                Marshal.Copy(struPlateResultInfo.pBuffer2, by, 0, iLen);
+                fs.Write(by, 0, iLen);
+                fs.Close();
+            }
+            if (struPlateResultInfo.dwFarCarPicLen != 0)
+            {
+                str = "D:/UserID_" + pAlarmer.lUserID + "_远景图.jpg";
+                FileStream fs = new FileStream(str, FileMode.Create);
+                int iLen = (int)struPlateResultInfo.dwFarCarPicLen;
+                byte[] by = new byte[iLen];
+                Marshal.Copy(struPlateResultInfo.pBuffer5, by, 0, iLen);
+                fs.Write(by, 0, iLen);
+                fs.Close();
+            }
+        }
+
+        private void ProcessCommAlarm_ITSPlate(ref CHCNetSDK.NET_DVR_ALARMER pAlarmer, IntPtr pAlarmInfo, uint dwBufLen, IntPtr pUser)
+        {
+            CHCNetSDK.NET_ITS_PLATE_RESULT struITSPlateResult = new CHCNetSDK.NET_ITS_PLATE_RESULT();
+            uint dwSize = (uint)Marshal.SizeOf(struITSPlateResult);
+
+            struITSPlateResult = (CHCNetSDK.NET_ITS_PLATE_RESULT)Marshal.PtrToStructure(pAlarmInfo, typeof(CHCNetSDK.NET_ITS_PLATE_RESULT));
+
+            //保存抓拍图片
+            for (int i = 0; i < struITSPlateResult.dwPicNum; i++)
+            {
+                if (struITSPlateResult.struPicInfo[i].dwDataLen != 0)
+                {
+                    string str = "D:/UserID_" + pAlarmer.lUserID + "_Pictype_" + struITSPlateResult.struPicInfo[i].byType + "_Num" + (i + 1) + ".jpg";
+                    FileStream fs = new FileStream(str, FileMode.Create);
+                    int iLen = (int)struITSPlateResult.struPicInfo[i].dwDataLen;
+                    byte[] by = new byte[iLen];
+                    Marshal.Copy(struITSPlateResult.struPicInfo[i].pBuffer, by, 0, iLen);
+                    fs.Write(by, 0, iLen);
+                    fs.Close();
+                }
+            }
+        }
+
         public void DebugInfo(string str)
         {
-            if (str.Length > 0)
+            Action action = () =>
             {
-                str += "\n";
-                txtInfo.AppendText(str);
-            }
+                if (str.Length > 0)
+                {
+                    str += "\n";
+                    txtInfo.AppendText(str);
+                }
+            };
+            this.BeginInvoke(action);
         }
 
         private void btnLogin_Click(object sender, EventArgs e)
@@ -114,6 +205,17 @@ namespace DS_2CD9121A_S
                     {
                         iChannelNum[i] = i + (int)DeviceInfo.byStartChan;
                     }
+
+                    struAlarmParam = new CHCNetSDK.NET_DVR_SETUPALARM_PARAM();
+                    struAlarmParam.dwSize = (uint)Marshal.SizeOf(struAlarmParam);
+                    struAlarmParam.byAlarmInfoType = 1;//智能交通设备有效
+                    //一级布防最大连接数为1个，二级最大连接数为3个，三级最大连接数为5个，设备支持一级、二级和
+                    //三级布防同时进行，一级布防优先上传信息
+                    struAlarmParam.byLevel = 1;
+
+                    m_falarmData = new CHCNetSDK.MSGCallBack(MsgCallback);
+                    CHCNetSDK.NET_DVR_SetDVRMessageCallBack_V30(m_falarmData, IntPtr.Zero);
+                    m_lAlarmHandle = CHCNetSDK.NET_DVR_SetupAlarmChan_V41(m_lUserID, ref struAlarmParam);
                 }
             }
             else
@@ -380,10 +482,44 @@ namespace DS_2CD9121A_S
                 CHCNetSDK.NET_DVR_Logout(m_lUserID);
                 m_lUserID = -1;
             }
+            if (m_lAlarmHandle >= 0)
+            {
+                CHCNetSDK.NET_DVR_CloseAlarmChan_V30(m_lAlarmHandle);
+            }
 
             CHCNetSDK.NET_DVR_Cleanup();
 
             Application.Exit();
+        }
+
+        private void btnSnap_Click(object sender, EventArgs e)
+        {
+            if(m_lUserID < 0)
+            {
+                MessageBox.Show("请先登录设备");
+            }
+            else
+            {
+                CHCNetSDK.NET_DVR_SNAPCFG struSnapCfg = new CHCNetSDK.NET_DVR_SNAPCFG();
+                struSnapCfg.dwSize = (uint)Marshal.SizeOf(struSnapCfg);
+
+                struSnapCfg.bySnapTimes = 3;
+                struSnapCfg.wSnapWaitTime = 1000;
+                struSnapCfg.wIntervalTime  = new ushort[10];
+                struSnapCfg.wIntervalTime[0] = 1000;
+                struSnapCfg.wIntervalTime[1] = 1000;
+                struSnapCfg.byRelatedDriveWay = 0;
+                if (CHCNetSDK.NET_DVR_ContinuousShoot(m_lUserID, ref struSnapCfg))
+                {
+                    DebugInfo("抓拍成功");
+                }
+                else
+                {
+                    DebugInfo("抓拍不成功");
+                }
+
+
+            }
         }
     }
 }
