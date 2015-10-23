@@ -47,7 +47,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CHCNetSDK.cs" />
+    <Compile Include="DS-2CD9121A-SAlarm.cs" />
     <Compile Include="DS-2CD9121A-SPreview.cs" />
+    <Compile Include="DS_2CD9121A_SSnap.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>

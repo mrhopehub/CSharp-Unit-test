@@ -8,7 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.IO;
+
 namespace DS_2CD9121A_S
 {
     public partial class Form1 : Form
@@ -37,21 +37,29 @@ namespace DS_2CD9121A_S
 
         //==========================3、预览变量======================//
         //1.用户单击标示
-        //2.是否预览成功
+        //2.预览句柄
         private Int32 m_lRealHandle = -1;
         private DS_2CD9121A_SPreview preview;
         //====================================================================//
+
+        //==========================4、报警变量======================//
+        //报警句柄
+        private Int32 m_lAlarmHandle = -1;
+        private DS_2CD9121A_SAlarm alarm;
+        //====================================================================//
+
+        //==========================5、抓拍变量======================//
+        private DS_2CD9121A_SSnap snap;
+        //====================================================================//
         
         private uint iLastErr = 0;
-
-        CHCNetSDK.NET_DVR_SETUPALARM_PARAM struAlarmParam;
-        private CHCNetSDK.MSGCallBack m_falarmData = null;
-        private Int32 m_lAlarmHandle;
 
         public Form1()
         {
             InitializeComponent();
             this.preview = new DS_2CD9121A_SPreview(this, RealPlayWnd.Handle);
+            this.alarm = new DS_2CD9121A_SAlarm();
+            this.snap = new DS_2CD9121A_SSnap();
             //1.SDK初始化
             m_bInitSDK = CHCNetSDK.NET_DVR_Init();
             if (m_bInitSDK == false)
@@ -63,44 +71,6 @@ namespace DS_2CD9121A_S
             {
                 //保存SDK日志 To save the SDK log
                 CHCNetSDK.NET_DVR_SetLogToFile(3, "C:\\SdkLog\\", true);
-            }
-        }
-
-        public void MsgCallback(int lCommand, ref CHCNetSDK.NET_DVR_ALARMER pAlarmer, IntPtr pAlarmInfo, uint dwBufLen, IntPtr pUser)
-        {
-            //通过lCommand来判断接收到的报警信息类型，不同的lCommand对应不同的pAlarmInfo内容
-            switch (lCommand)
-            {
-                case CHCNetSDK.COMM_ITS_PLATE_RESULT://交通抓拍结果上传(新报警信息类型)
-                    DebugInfo("新报警信息");
-                    ProcessCommAlarm_ITSPlate(ref pAlarmer, pAlarmInfo, dwBufLen, pUser);
-                    break;
-                default:
-                    DebugInfo("未知报警信息");
-                    break;
-            }
-        }
-
-        private void ProcessCommAlarm_ITSPlate(ref CHCNetSDK.NET_DVR_ALARMER pAlarmer, IntPtr pAlarmInfo, uint dwBufLen, IntPtr pUser)
-        {
-            CHCNetSDK.NET_ITS_PLATE_RESULT struITSPlateResult = new CHCNetSDK.NET_ITS_PLATE_RESULT();
-            uint dwSize = (uint)Marshal.SizeOf(struITSPlateResult);
-
-            struITSPlateResult = (CHCNetSDK.NET_ITS_PLATE_RESULT)Marshal.PtrToStructure(pAlarmInfo, typeof(CHCNetSDK.NET_ITS_PLATE_RESULT));
-
-            //保存抓拍图片
-            for (int i = 0; i < struITSPlateResult.dwPicNum; i++)
-            {
-                if (struITSPlateResult.struPicInfo[i].dwDataLen != 0)
-                {
-                    string str = "D:/UserID_" + pAlarmer.lUserID + "_Pictype_" + struITSPlateResult.struPicInfo[i].byType + "_Num" + (i + 1) + ".jpg";
-                    FileStream fs = new FileStream(str, FileMode.Create);
-                    int iLen = (int)struITSPlateResult.struPicInfo[i].dwDataLen;
-                    byte[] by = new byte[iLen];
-                    Marshal.Copy(struITSPlateResult.struPicInfo[i].pBuffer, by, 0, iLen);
-                    fs.Write(by, 0, iLen);
-                    fs.Close();
-                }
             }
         }
 
@@ -146,17 +116,6 @@ namespace DS_2CD9121A_S
                     {
                         iChannelNum[i] = i + (int)DeviceInfo.byStartChan;
                     }
-
-                    struAlarmParam = new CHCNetSDK.NET_DVR_SETUPALARM_PARAM();
-                    struAlarmParam.dwSize = (uint)Marshal.SizeOf(struAlarmParam);
-                    struAlarmParam.byAlarmInfoType = 1;//智能交通设备有效
-                    //一级布防最大连接数为1个，二级最大连接数为3个，三级最大连接数为5个，设备支持一级、二级和
-                    //三级布防同时进行，一级布防优先上传信息
-                    struAlarmParam.byLevel = 1;
-
-                    m_falarmData = new CHCNetSDK.MSGCallBack(MsgCallback);
-                    CHCNetSDK.NET_DVR_SetDVRMessageCallBack_V30(m_falarmData, IntPtr.Zero);
-                    m_lAlarmHandle = CHCNetSDK.NET_DVR_SetupAlarmChan_V41(m_lUserID, ref struAlarmParam);
                 }
             }
             else
@@ -166,6 +125,12 @@ namespace DS_2CD9121A_S
                 if (m_lRealHandle >= 0)
                 {
                     DebugInfo("Please stop live view firstly"); //登出前先停止预览 Stop live view before logout
+                    return;
+                }
+
+                if (m_lAlarmHandle >= 0)
+                {
+                    DebugInfo("Please stop Alarm firstly"); //登出前先停止预览 Stop live view before logout
                     return;
                 }
 
@@ -225,34 +190,65 @@ namespace DS_2CD9121A_S
             }
         }
 
-        private void btnExit_Click(object sender, EventArgs e)
+        private void btnAlarm_Click(object sender, EventArgs e)
         {
-            //停止预览
-            if (m_lRealHandle >= 0)
+            if (m_lUserID < 0)
             {
-                if (this.preview.stopPreview(m_lRealHandle))
+                MessageBox.Show("Please login the device firstly!");
+                return;
+            }
+            if (m_lAlarmHandle < 0)
+            {
+                m_lAlarmHandle = this.alarm.startAlarm(m_lUserID);
+                if (m_lAlarmHandle < 0)
                 {
-                    DebugInfo("NET_DVR_StopRealPlay succ!");
-                    m_lRealHandle = -1;
-                    btnPreview.Text = "开始预览";
-                    RealPlayWnd.Invalidate();//刷新窗口 refresh the window
+                    string str;
+                    iLastErr = CHCNetSDK.NET_DVR_GetLastError();
+                    str = "NET_DVR_SetupAlarmChan_V41, error code= " + iLastErr; //布防失败，输出错误号 failed to start live view, and output the error code.
+                    DebugInfo(str);
                 }
                 else
                 {
-                    DebugInfo("NET_DVR_StopRealPlay succ!");
+                    //布防成功
+                    DebugInfo("NET_DVR_SetupAlarmChan_V41 succ!");
+                    btnAlarm.Text = "停止布防";
                 }
             }
+            else
+            {
+                if (this.alarm.stopAlarm(m_lAlarmHandle))
+                {
+                    DebugInfo("NET_DVR_CloseAlarmChan_V30 succ!");
+                    m_lAlarmHandle = -1;
+                    btnAlarm.Text = "开始布防";
+                }
+                else
+                {
+                    string str;
+                    iLastErr = CHCNetSDK.NET_DVR_GetLastError();
+                    str = "NET_DVR_CloseAlarmChan_V30 failed, error code= " + iLastErr;
+                    DebugInfo(str);
+                }
+            }
+        }
 
+        private void btnExit_Click(object sender, EventArgs e)
+        {
             //注销登录
             if (m_lUserID >= 0)
             {
                 CHCNetSDK.NET_DVR_Logout(m_lUserID);
                 m_lUserID = -1;
             }
+            //停止预览
+            if (m_lRealHandle >= 0)
+            {
+                this.preview.stopPreview(m_lRealHandle);
+            }
             //撤防
             if (m_lAlarmHandle >= 0)
             {
-                CHCNetSDK.NET_DVR_CloseAlarmChan_V30(m_lAlarmHandle);
+                alarm.startAlarm(m_lAlarmHandle);
             }
 
             CHCNetSDK.NET_DVR_Cleanup();
@@ -265,28 +261,15 @@ namespace DS_2CD9121A_S
             if(m_lUserID < 0)
             {
                 MessageBox.Show("请先登录设备");
+                return;
+            }
+            if (snap.TriggerSnap(m_lUserID))
+            {
+                DebugInfo("抓拍成功");
             }
             else
             {
-                CHCNetSDK.NET_DVR_SNAPCFG struSnapCfg = new CHCNetSDK.NET_DVR_SNAPCFG();
-                struSnapCfg.dwSize = (uint)Marshal.SizeOf(struSnapCfg);
-
-                struSnapCfg.bySnapTimes = 3;
-                struSnapCfg.wSnapWaitTime = 1000;
-                struSnapCfg.wIntervalTime  = new ushort[10];
-                struSnapCfg.wIntervalTime[0] = 1000;
-                struSnapCfg.wIntervalTime[1] = 1000;
-                struSnapCfg.byRelatedDriveWay = 0;
-                if (CHCNetSDK.NET_DVR_ContinuousShoot(m_lUserID, ref struSnapCfg))
-                {
-                    DebugInfo("抓拍成功");
-                }
-                else
-                {
-                    DebugInfo("抓拍不成功");
-                }
-
-
+                DebugInfo("抓拍不成功");
             }
         }
     }

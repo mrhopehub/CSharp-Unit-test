@@ -42,6 +42,7 @@
             this.txtInfo = new System.Windows.Forms.TextBox();
             this.btnExit = new System.Windows.Forms.Button();
             this.btnSnap = new System.Windows.Forms.Button();
+            this.btnAlarm = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.RealPlayWnd)).BeginInit();
             this.SuspendLayout();
             // 
@@ -50,7 +51,7 @@
             this.RealPlayWnd.BackColor = System.Drawing.Color.Black;
             this.RealPlayWnd.Location = new System.Drawing.Point(0, 0);
             this.RealPlayWnd.Name = "RealPlayWnd";
-            this.RealPlayWnd.Size = new System.Drawing.Size(612, 360);
+            this.RealPlayWnd.Size = new System.Drawing.Size(575, 360);
             this.RealPlayWnd.TabIndex = 0;
             this.RealPlayWnd.TabStop = false;
             // 
@@ -135,7 +136,7 @@
             // 
             // btnPreview
             // 
-            this.btnPreview.Location = new System.Drawing.Point(537, 364);
+            this.btnPreview.Location = new System.Drawing.Point(500, 364);
             this.btnPreview.Name = "btnPreview";
             this.btnPreview.Size = new System.Drawing.Size(75, 23);
             this.btnPreview.TabIndex = 10;
@@ -148,12 +149,12 @@
             this.txtInfo.Location = new System.Drawing.Point(0, 420);
             this.txtInfo.Multiline = true;
             this.txtInfo.Name = "txtInfo";
-            this.txtInfo.Size = new System.Drawing.Size(612, 63);
+            this.txtInfo.Size = new System.Drawing.Size(494, 50);
             this.txtInfo.TabIndex = 11;
             // 
             // btnExit
             // 
-            this.btnExit.Location = new System.Drawing.Point(537, 391);
+            this.btnExit.Location = new System.Drawing.Point(500, 447);
             this.btnExit.Name = "btnExit";
             this.btnExit.Size = new System.Drawing.Size(75, 23);
             this.btnExit.TabIndex = 12;
@@ -163,7 +164,7 @@
             // 
             // btnSnap
             // 
-            this.btnSnap.Location = new System.Drawing.Point(419, 364);
+            this.btnSnap.Location = new System.Drawing.Point(500, 420);
             this.btnSnap.Name = "btnSnap";
             this.btnSnap.Size = new System.Drawing.Size(75, 23);
             this.btnSnap.TabIndex = 13;
@@ -171,11 +172,22 @@
             this.btnSnap.UseVisualStyleBackColor = true;
             this.btnSnap.Click += new System.EventHandler(this.btnSnap_Click);
             // 
+            // btnAlarm
+            // 
+            this.btnAlarm.Location = new System.Drawing.Point(500, 391);
+            this.btnAlarm.Name = "btnAlarm";
+            this.btnAlarm.Size = new System.Drawing.Size(75, 23);
+            this.btnAlarm.TabIndex = 14;
+            this.btnAlarm.Text = "开始布防";
+            this.btnAlarm.UseVisualStyleBackColor = true;
+            this.btnAlarm.Click += new System.EventHandler(this.btnAlarm_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(624, 482);
+            this.ClientSize = new System.Drawing.Size(582, 476);
+            this.Controls.Add(this.btnAlarm);
             this.Controls.Add(this.btnSnap);
             this.Controls.Add(this.btnExit);
             this.Controls.Add(this.txtInfo);
@@ -214,6 +226,7 @@
         private System.Windows.Forms.TextBox txtInfo;
         private System.Windows.Forms.Button btnExit;
         private System.Windows.Forms.Button btnSnap;
+        private System.Windows.Forms.Button btnAlarm;
     }
 }
 
