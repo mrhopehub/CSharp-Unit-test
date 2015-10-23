@@ -39,24 +39,10 @@ namespace DS_2CD9121A_S
         //1.用户单击标示
         //2.是否预览成功
         private Int32 m_lRealHandle = -1;
-
-        private CHCNetSDK.NET_DVR_PREVIEWINFO lpPreviewInfo;
-
-        private IntPtr m_ptrRealHandle;//绘图句柄
-
-        //================================预览回调======================//
-        private CHCNetSDK.REALDATACALLBACK RealData = null;//预览回调函数
-        public delegate void MyDebugInfo(string str);
-        private PlayCtrl.DECCBFUN m_fDisplayFun = null;
-
-        private Int32 m_lPort = -1;
-        //==============================================================//
-        
+        private DS_2CD9121A_SPreview preview;
         //====================================================================//
         
         private uint iLastErr = 0;
-        //预览方式
-        private int previewMode = 1;
 
         CHCNetSDK.NET_DVR_SETUPALARM_PARAM struAlarmParam;
         private CHCNetSDK.MSGCallBack m_falarmData = null;
@@ -65,7 +51,7 @@ namespace DS_2CD9121A_S
         public Form1()
         {
             InitializeComponent();
-            m_ptrRealHandle = RealPlayWnd.Handle;
+            this.preview = new DS_2CD9121A_SPreview(this, RealPlayWnd.Handle);
             //1.SDK初始化
             m_bInitSDK = CHCNetSDK.NET_DVR_Init();
             if (m_bInitSDK == false)
@@ -85,10 +71,6 @@ namespace DS_2CD9121A_S
             //通过lCommand来判断接收到的报警信息类型，不同的lCommand对应不同的pAlarmInfo内容
             switch (lCommand)
             {
-                case CHCNetSDK.COMM_UPLOAD_PLATE_RESULT://交通抓拍结果上传(老报警信息类型)
-                    DebugInfo("老报警信息");
-                    ProcessCommAlarm_Plate(ref pAlarmer, pAlarmInfo, dwBufLen, pUser);
-                    break;
                 case CHCNetSDK.COMM_ITS_PLATE_RESULT://交通抓拍结果上传(新报警信息类型)
                     DebugInfo("新报警信息");
                     ProcessCommAlarm_ITSPlate(ref pAlarmer, pAlarmInfo, dwBufLen, pUser);
@@ -96,47 +78,6 @@ namespace DS_2CD9121A_S
                 default:
                     DebugInfo("未知报警信息");
                     break;
-            }
-        }
-
-        private void ProcessCommAlarm_Plate(ref CHCNetSDK.NET_DVR_ALARMER pAlarmer, IntPtr pAlarmInfo, uint dwBufLen, IntPtr pUser)
-        {
-            CHCNetSDK.NET_DVR_PLATE_RESULT struPlateResultInfo = new CHCNetSDK.NET_DVR_PLATE_RESULT();
-            uint dwSize = (uint)Marshal.SizeOf(struPlateResultInfo);
-
-            struPlateResultInfo = (CHCNetSDK.NET_DVR_PLATE_RESULT)Marshal.PtrToStructure(pAlarmInfo, typeof(CHCNetSDK.NET_DVR_PLATE_RESULT));
-
-            //保存抓拍图片
-            string str = "";
-            if (struPlateResultInfo.byResultType == 1 && struPlateResultInfo.dwPicLen != 0)
-            {
-                str = "D:/UserID_" + pAlarmer.lUserID + "_近景图.jpg";
-                FileStream fs = new FileStream(str, FileMode.Create);
-                int iLen = (int)struPlateResultInfo.dwPicLen;
-                byte[] by = new byte[iLen];
-                Marshal.Copy(struPlateResultInfo.pBuffer1, by, 0, iLen);
-                fs.Write(by, 0, iLen);
-                fs.Close();
-            }
-            if (struPlateResultInfo.dwPicPlateLen != 0)
-            {
-                str = "D:/UserID_" + pAlarmer.lUserID + "_车牌图.jpg";
-                FileStream fs = new FileStream(str, FileMode.Create);
-                int iLen = (int)struPlateResultInfo.dwPicPlateLen;
-                byte[] by = new byte[iLen];
-                Marshal.Copy(struPlateResultInfo.pBuffer2, by, 0, iLen);
-                fs.Write(by, 0, iLen);
-                fs.Close();
-            }
-            if (struPlateResultInfo.dwFarCarPicLen != 0)
-            {
-                str = "D:/UserID_" + pAlarmer.lUserID + "_远景图.jpg";
-                FileStream fs = new FileStream(str, FileMode.Create);
-                int iLen = (int)struPlateResultInfo.dwFarCarPicLen;
-                byte[] by = new byte[iLen];
-                Marshal.Copy(struPlateResultInfo.pBuffer5, by, 0, iLen);
-                fs.Write(by, 0, iLen);
-                fs.Close();
             }
         }
 
@@ -250,34 +191,13 @@ namespace DS_2CD9121A_S
             }
             if (m_lRealHandle < 0)
             {
-                string str;
-                lpPreviewInfo = new CHCNetSDK.NET_DVR_PREVIEWINFO();
-                lpPreviewInfo.hPlayWnd = m_ptrRealHandle;//预览窗口 live view window
-                lpPreviewInfo.lChannel = iChannelNum[0];//预览的设备通道 the device channel number
-                lpPreviewInfo.dwStreamType = 0;//码流类型：0-主码流，1-子码流，2-码流3，3-码流4，以此类推
-                lpPreviewInfo.dwLinkMode = 0;//连接方式：0- TCP方式，1- UDP方式，2- 多播方式，3- RTP方式，4-RTP/RTSP，5-RSTP/HTTP 
-                lpPreviewInfo.bBlocked = true; //0- 非阻塞取流，1- 阻塞取流
-
-                IntPtr pUser = IntPtr.Zero;//用户数据 user data
-
-                if (previewMode == 0)
-                {
-                    m_lRealHandle = CHCNetSDK.NET_DVR_RealPlay_V40(m_lUserID, ref lpPreviewInfo, null, pUser);
-                }
-                else
-                {
-                    lpPreviewInfo.hPlayWnd = IntPtr.Zero;//预览窗口 live view window
-                    RealData = new CHCNetSDK.REALDATACALLBACK(RealDataCallBack);//预览实时流回调函数 real-time stream callback function 
-                    //3.实时预览
-                    m_lRealHandle = CHCNetSDK.NET_DVR_RealPlay_V40(m_lUserID, ref lpPreviewInfo, RealData, pUser);
-                }
-
+                m_lRealHandle = this.preview.startPreview(m_lUserID, iChannelNum[0]);
                 if (m_lRealHandle < 0)
                 {
+                    string str;
                     iLastErr = CHCNetSDK.NET_DVR_GetLastError();
                     str = "NET_DVR_RealPlay_V40 failed, error code= " + iLastErr; //预览失败，输出错误号 failed to start live view, and output the error code.
                     DebugInfo(str);
-                    return;
                 }
                 else
                 {
@@ -288,182 +208,20 @@ namespace DS_2CD9121A_S
             }
             else
             {
-                string str;
-                //停止预览 Stop live view 
-                if (!CHCNetSDK.NET_DVR_StopRealPlay(m_lRealHandle))
+                if (this.preview.stopPreview(m_lRealHandle))
                 {
+                    DebugInfo("NET_DVR_StopRealPlay succ!");
+                    m_lRealHandle = -1;
+                    btnPreview.Text = "开始预览";
+                    RealPlayWnd.Invalidate();//刷新窗口 refresh the window
+                }
+                else
+                {
+                    string str;
                     iLastErr = CHCNetSDK.NET_DVR_GetLastError();
                     str = "NET_DVR_StopRealPlay failed, error code= " + iLastErr;
                     DebugInfo(str);
-                    return;
                 }
-                if ((previewMode == 1) && (m_lPort >= 0))
-                {
-                    if (!PlayCtrl.PlayM4_Stop(m_lPort))
-                    {
-                        iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                        str = "PlayM4_Stop failed, error code= " + iLastErr;
-                        DebugInfo(str);
-                    }
-                    if (!PlayCtrl.PlayM4_CloseStream(m_lPort))
-                    {
-                        iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                        str = "PlayM4_CloseStream failed, error code= " + iLastErr;
-                        DebugInfo(str);
-                    }
-                    if (!PlayCtrl.PlayM4_FreePort(m_lPort))
-                    {
-                        iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                        str = "PlayM4_FreePort failed, error code= " + iLastErr;
-                        DebugInfo(str);
-                    }
-                    m_lPort = -1;
-                }
-
-                DebugInfo("NET_DVR_StopRealPlay succ!");
-                m_lRealHandle = -1;
-                btnPreview.Text = "开始预览";
-                RealPlayWnd.Invalidate();//刷新窗口 refresh the window
-            }
-        }
-
-        public void RealDataCallBack(Int32 lRealHandle, UInt32 dwDataType, IntPtr pBuffer, UInt32 dwBufSize, IntPtr pUser)
-        {
-            string str;
-            //下面数据处理建议使用委托的方式
-            MyDebugInfo AlarmInfo = new MyDebugInfo(DebugInfo);
-            switch (dwDataType)
-            {
-                case CHCNetSDK.NET_DVR_SYSHEAD:     // sys head
-                    if (dwBufSize > 0)
-                    {
-                        //获取播放句柄 Get the port to play
-                        if (!PlayCtrl.PlayM4_GetPort(ref m_lPort))
-                        {
-                            iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                            str = "PlayM4_GetPort failed, error code= " + iLastErr;
-                            this.BeginInvoke(AlarmInfo, str);
-                            break;
-                        }
-
-                        //设置流播放模式 Set the stream mode: real-time stream mode
-                        if (!PlayCtrl.PlayM4_SetStreamOpenMode(m_lPort, PlayCtrl.STREAME_REALTIME))
-                        {
-                            iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                            str = "Set STREAME_REALTIME mode failed, error code= " + iLastErr;
-                            this.BeginInvoke(AlarmInfo, str);
-                        }
-
-                        //打开码流，送入头数据 Open stream
-                        if (!PlayCtrl.PlayM4_OpenStream(m_lPort, pBuffer, dwBufSize, 2 * 1024 * 1024))
-                        {
-                            iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                            str = "PlayM4_OpenStream failed, error code= " + iLastErr;
-                            this.BeginInvoke(AlarmInfo, str);
-                            break;
-                        }
-
-
-                        //设置显示缓冲区个数 Set the display buffer number
-                        if (!PlayCtrl.PlayM4_SetDisplayBuf(m_lPort, 15))
-                        {
-                            iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                            str = "PlayM4_SetDisplayBuf failed, error code= " + iLastErr;
-                            this.BeginInvoke(AlarmInfo, str);
-                        }
-
-                        //设置显示模式 Set the display mode
-                        if (!PlayCtrl.PlayM4_SetOverlayMode(m_lPort, 0, 0/* COLORREF(0)*/)) //play off screen 
-                        {
-                            iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                            str = "PlayM4_SetOverlayMode failed, error code= " + iLastErr;
-                            this.BeginInvoke(AlarmInfo, str);
-                        }
-
-                        //设置解码回调函数，获取解码后音视频原始数据 Set callback function of decoded data
-                        m_fDisplayFun = new PlayCtrl.DECCBFUN(DecCallbackFUN);
-                        if (!PlayCtrl.PlayM4_SetDecCallBackEx(m_lPort, m_fDisplayFun, IntPtr.Zero, 0))
-                        {
-                            this.BeginInvoke(AlarmInfo, "PlayM4_SetDisplayCallBack fail");
-                        }
-
-                        //开始解码 Start to play                       
-                        if (!PlayCtrl.PlayM4_Play(m_lPort, m_ptrRealHandle))
-                        {
-                            iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                            str = "PlayM4_Play failed, error code= " + iLastErr;
-                            this.BeginInvoke(AlarmInfo, str);
-                            break;
-                        }
-                    }
-                    break;
-                case CHCNetSDK.NET_DVR_STREAMDATA:     // video stream data
-                    if (dwBufSize > 0 && m_lPort != -1)
-                    {
-                        for (int i = 0; i < 999; i++)
-                        {
-                            //送入码流数据进行解码 Input the stream data to decode
-                            if (!PlayCtrl.PlayM4_InputData(m_lPort, pBuffer, dwBufSize))
-                            {
-                                iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                                str = "PlayM4_InputData failed, error code= " + iLastErr;
-                                Thread.Sleep(2);
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-                    }
-                    break;
-                default:
-                    if (dwBufSize > 0 && m_lPort != -1)
-                    {
-                        //送入其他数据 Input the other data
-                        for (int i = 0; i < 999; i++)
-                        {
-                            if (!PlayCtrl.PlayM4_InputData(m_lPort, pBuffer, dwBufSize))
-                            {
-                                iLastErr = PlayCtrl.PlayM4_GetLastError(m_lPort);
-                                str = "PlayM4_InputData failed, error code= " + iLastErr;
-                                Thread.Sleep(2);
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-                    }
-                    break;
-            }
-        }
-
-        //解码回调函数
-        private void DecCallbackFUN(int nPort, IntPtr pBuf, int nSize, ref PlayCtrl.FRAME_INFO pFrameInfo, int nReserved1, int nReserved2)
-        {
-            // 将pBuf解码后视频输入写入文件中（解码后YUV数据量极大，尤其是高清码流，不建议在回调函数中处理）
-            if (pFrameInfo.nType == 3) //#define T_YV12	3
-            {
-                //    FileStream fs = null;
-                //    BinaryWriter bw = null;
-                //    try
-                //    {
-                //        fs = new FileStream("DecodedVideo.yuv", FileMode.Append);
-                //        bw = new BinaryWriter(fs);
-                //        byte[] byteBuf = new byte[nSize];
-                //        Marshal.Copy(pBuf, byteBuf, 0, nSize);
-                //        bw.Write(byteBuf);
-                //        bw.Flush();
-                //    }
-                //    catch (System.Exception ex)
-                //    {
-                //        MessageBox.Show(ex.ToString());
-                //    }
-                //    finally
-                //    {
-                //        bw.Close();
-                //        fs.Close();
-                //    }
             }
         }
 
@@ -472,8 +230,17 @@ namespace DS_2CD9121A_S
             //停止预览
             if (m_lRealHandle >= 0)
             {
-                CHCNetSDK.NET_DVR_StopRealPlay(m_lRealHandle);
-                m_lRealHandle = -1;
+                if (this.preview.stopPreview(m_lRealHandle))
+                {
+                    DebugInfo("NET_DVR_StopRealPlay succ!");
+                    m_lRealHandle = -1;
+                    btnPreview.Text = "开始预览";
+                    RealPlayWnd.Invalidate();//刷新窗口 refresh the window
+                }
+                else
+                {
+                    DebugInfo("NET_DVR_StopRealPlay succ!");
+                }
             }
 
             //注销登录
@@ -482,6 +249,7 @@ namespace DS_2CD9121A_S
                 CHCNetSDK.NET_DVR_Logout(m_lUserID);
                 m_lUserID = -1;
             }
+            //撤防
             if (m_lAlarmHandle >= 0)
             {
                 CHCNetSDK.NET_DVR_CloseAlarmChan_V30(m_lAlarmHandle);
