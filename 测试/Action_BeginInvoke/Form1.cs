@@ -23,7 +23,7 @@ namespace Action_BeginInvoke
             textBox1Writeline(message);
         }
 
-        private void textBox1Writeline(string line)
+        public void textBox1Writeline(string line)
         {
             Action action = () =>
             {
@@ -35,16 +35,24 @@ namespace Action_BeginInvoke
 
         private void button2_Click(object sender, EventArgs e)
         {
-            Thread tt = new Thread(Hello);
+            Thread tt = new Thread(() => Hello());
             tt.IsBackground = true;
             tt.Start();
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
-            Thread tt = new Thread(new ParameterizedThreadStart(Hello1));
+            Thread tt = new Thread(() => Hello1("Li YunChong"));
             tt.IsBackground = true;
-            tt.Start("Li YunChong");
+            tt.Start();
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            PassParametersByObject threadObj = new PassParametersByObject(this, "李运崇", "26", "男");
+            System.Threading.Thread tt = new Thread(() => threadObj.run());
+            tt.IsBackground = true;
+            tt.Start();
         }
 
         private void Hello()
