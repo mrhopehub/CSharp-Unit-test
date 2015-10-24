@@ -1,0 +1,5 @@
+D:\C#Workplace\EmptySolution\App\obj\Debug\ResolveAssemblyReference.cache
+D:\C#Workplace\EmptySolution\App\bin\Debug\App.dll
+D:\C#Workplace\EmptySolution\App\bin\Debug\App.pdb
+D:\C#Workplace\EmptySolution\App\obj\Debug\App.dll
+D:\C#Workplace\EmptySolution\App\obj\Debug\App.pdb

@@ -49,7 +49,7 @@ namespace Action_BeginInvoke
 
         private void button4_Click(object sender, EventArgs e)
         {
-            PassParametersByObject threadObj = new PassParametersByObject(this, "李运崇", "26", "男");
+            PassParametersByObject threadObj = new PassParametersByObject("李运崇", "26", "男");
             System.Threading.Thread tt = new Thread(() => threadObj.run());
             tt.IsBackground = true;
             tt.Start();
