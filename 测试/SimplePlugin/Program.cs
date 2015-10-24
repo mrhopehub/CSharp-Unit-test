@@ -6,6 +6,7 @@ using System.IO;
 using System.Reflection;
 using PluginContracts;
 using App;
+using MEFPlugin;
 
 namespace SimplePlugin
 {
@@ -22,6 +23,14 @@ namespace SimplePlugin
             foreach (IMyPlugin plugin in myPlugins)
             {
                 plugin.DIY();
+            }
+
+            GenericMEFPluginLoader<IPlugin> loader = new GenericMEFPluginLoader<IPlugin>(@"./MEFPlugins");
+            IEnumerable<IPlugin> MEFPlugins = loader.Plugins;
+
+            foreach(var item in MEFPlugins)
+            {
+                item.Do();
             }
 
             Console.ReadKey();
