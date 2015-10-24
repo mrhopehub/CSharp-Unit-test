@@ -12,7 +12,7 @@ namespace MEFPlugin
         private CompositionContainer _Container;
 
         [ImportMany]
-        public IEnumerable<T> Plugins
+        public List<T> Plugins
         {
             get;
             set;

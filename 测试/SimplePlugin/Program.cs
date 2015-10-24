@@ -26,12 +26,13 @@ namespace SimplePlugin
             }
 
             GenericMEFPluginLoader<IPlugin> loader = new GenericMEFPluginLoader<IPlugin>(@"./MEFPlugins");
-            IEnumerable<IPlugin> MEFPlugins = loader.Plugins;
+            List<IPlugin> MEFPlugins = loader.Plugins;
 
             foreach(var item in MEFPlugins)
             {
                 item.Do();
             }
+            MEFPlugins[0].Do();
 
             Console.ReadKey();
         }
